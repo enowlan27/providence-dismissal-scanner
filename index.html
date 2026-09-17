@@ -1,108 +1,988 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Providence Dismissal Scanner</title>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-<style>
-body{font-family:Arial,sans-serif;margin:0;background:#f4f7f5;color:#1f2937;text-align:center}
-.wrap{max-width:650px;margin:0 auto;padding:24px 16px 40px}
-h1{margin:8px 0 6px;font-size:30px}.subtitle{margin:0 0 20px;color:#4b5563;font-size:17px}
-#reader{width:100%;max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.12)}
-.help{margin-top:18px;background:#fff;border-radius:12px;padding:14px;font-size:15px;color:#4b5563}
-.error{margin-top:16px;color:#b91c1c;font-weight:700}
-</style>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <title>Providence Elementary Dismissal Scanner</title>
+
+  <script
+    src="https://unpkg.com/html5-qrcode"
+    type="text/javascript">
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f4f4;
+      color: #222;
+      text-align: center;
+    }
+
+    body {
+      padding-bottom: 30px;
+    }
+
+    h1 {
+      margin: 18px 10px 5px;
+      font-size: 28px;
+    }
+
+    #status {
+      margin: 5px 15px 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 650px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /*
+     * GREEN DISMISSED SCREEN
+     */
+
+    #successOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      width: 100%;
+      height: 100%;
+      background: #188038;
+      color: white;
+
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+
+      padding: 30px 20px;
+    }
+
+    #successOverlay .check {
+      font-size: 90px;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    #successOverlay h2 {
+      font-size: 42px;
+      margin: 5px 0 15px;
+    }
+
+    #successName {
+      font-size: 34px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    #successTime {
+      font-size: 24px;
+      margin: 10px 0 30px;
+    }
+
+    /*
+     * ALREADY DISMISSED SCREEN
+     */
+
+    #warningOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      width: 100%;
+      height: 100%;
+      background: #f9ab00;
+      color: #222;
+
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+
+      padding: 30px 20px;
+    }
+
+    #warningOverlay .warning {
+      font-size: 90px;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    #warningOverlay h2 {
+      font-size: 38px;
+      margin: 5px 0 15px;
+    }
+
+    #warningName {
+      font-size: 32px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    #warningTime {
+      font-size: 22px;
+      margin: 10px 0 30px;
+    }
+
+    /*
+     * BUTTONS
+     */
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 18px 28px;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .greenButton {
+      background: white;
+      color: #188038;
+    }
+
+    .grayButton {
+      background: #555;
+      color: white;
+    }
+
+    /*
+     * STATUS / ERROR
+     */
+
+    #loading {
+      display: none;
+      margin: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #errorMessage {
+      display: none;
+      margin: 15px;
+      padding: 15px;
+      border-radius: 10px;
+      background: #d93025;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-<h1>Providence Dismissal Scanner</h1>
-<p class="subtitle">Point the camera at the student's QR code.</p>
-<div id="reader"></div>
-<div class="help">Allow camera access when your phone asks. The scanner will automatically send the student ID to the Providence dismissal system.</div>
-<div id="error" class="error"></div>
-</div>
-<script>
-const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxUGMJ8hMuVowkrylN7zw4WzZBQ4oBP5ZiWO0TeD0Fu2uu5ytTYrgMKhpQm7Kee21VDlQ/exec";
 
-let handled = false;
-let scanner = null;
+  <h1>Providence Elementary</h1>
 
-async function releaseCamera() {
-  if (!scanner) return;
+  <div id="status">
+    Starting camera...
+  </div>
 
-  try {
-    await scanner.stop();
-  } catch (e) {
-    console.log("Scanner stop:", e);
-  }
+  <div id="reader"></div>
 
-  try {
-    await scanner.clear();
-  } catch (e) {
-    console.log("Scanner clear:", e);
-  }
+  <div id="loading">
+    Recording dismissal...
+  </div>
 
-  scanner = null;
-}
+  <div id="errorMessage"></div>
 
-async function onScanSuccess(decodedText) {
-  if (handled) return;
 
-  const id = decodedText.trim();
+  <!-- ==========================================
+       DISMISSED OVERLAY
+       ========================================== -->
 
-  if (!/^PROV-DIS-\d+$/i.test(id)) {
-    document.getElementById("error").textContent =
-      "That QR code is not a Providence dismissal code.";
-    return;
-  }
+  <div id="successOverlay">
 
-  handled = true;
+    <div class="check">
+      ✓
+    </div>
 
-  await releaseCamera();
+    <h2>
+      DISMISSED
+    </h2>
 
-  setTimeout(function () {
-    window.location.replace(
-      APPS_SCRIPT_URL + "?id=" + encodeURIComponent(id)
+    <div id="successName"></div>
+
+    <div id="successTime"></div>
+
+    <button
+      class="greenButton"
+      onclick="nextStudent()">
+      Scan Next Student
+    </button>
+
+    <button
+      class="grayButton"
+      onclick="undoDismissal()">
+      Undo Dismissal
+    </button>
+
+  </div>
+
+
+  <!-- ==========================================
+       ALREADY DISMISSED OVERLAY
+       ========================================== -->
+
+  <div id="warningOverlay">
+
+    <div class="warning">
+      !
+    </div>
+
+    <h2>
+      ALREADY DISMISSED
+    </h2>
+
+    <div id="warningName"></div>
+
+    <div id="warningTime"></div>
+
+    <button
+      class="greenButton"
+      onclick="nextStudent()">
+      Scan Next Student
+    </button>
+
+    <button
+      class="grayButton"
+      onclick="undoDismissal()">
+      Undo Dismissal
+    </button>
+
+  </div>
+
+
+  <script>
+
+    /************************************************
+     * GOOGLE APPS SCRIPT
+     ************************************************/
+
+    const APPS_SCRIPT_URL =
+      "https://script.google.com/macros/s/AKfycbxUGMJ8hMuVowkrylN7zw4WzZBQ4oBP5ZiWO0TeD0Fu2uu5ytTYrgMKhpQm7Kee21VDlQ/exec";
+
+
+    /************************************************
+     * SCANNER STATE
+     ************************************************/
+
+    let scanner = null;
+
+    let cameraStarted = false;
+
+    let scanPaused = false;
+
+    let processingScan = false;
+
+    let currentStudentId = null;
+
+    let callbackCounter = 0;
+
+
+    /************************************************
+     * START CAMERA
+     *
+     * The important part:
+     *
+     * We create ONE camera session.
+     *
+     * We do NOT destroy it after a scan.
+     ************************************************/
+
+    async function startScanner() {
+
+      if (cameraStarted) {
+
+        resumeScanner();
+
+        return;
+      }
+
+
+      document.getElementById("status").innerText =
+        "Starting camera...";
+
+
+      scanner =
+        new Html5Qrcode("reader");
+
+
+      try {
+
+        await scanner.start(
+
+          {
+            facingMode: "environment"
+          },
+
+          {
+            fps: 10,
+
+            qrbox: {
+              width: 280,
+              height: 280
+            },
+
+            aspectRatio: 1.0
+          },
+
+          onScanSuccess,
+
+          onScanFailure
+
+        );
+
+
+        cameraStarted = true;
+
+        scanPaused = false;
+
+        processingScan = false;
+
+
+        document.getElementById("status").innerText =
+          "Ready to scan";
+
+
+      } catch (error) {
+
+        console.error(
+          "Camera error:",
+          error
+        );
+
+
+        document.getElementById("status").innerText =
+          "Camera access required";
+
+
+        showError(
+          "Please allow camera access in Safari, " +
+          "then reload this page."
+        );
+      }
+    }
+
+
+    /************************************************
+     * SUCCESSFUL QR SCAN
+     ************************************************/
+
+    function onScanSuccess(
+      decodedText,
+      decodedResult
+    ) {
+
+      /*
+       * html5-qrcode can report the same QR
+       * several times very quickly.
+       *
+       * This prevents duplicate requests.
+       */
+
+      if (processingScan) {
+        return;
+      }
+
+
+      const id =
+        String(decodedText || "").trim();
+
+
+      /*
+       * Only accept Providence IDs.
+       *
+       * Example:
+       * PROV-DIS-001
+       */
+
+      if (!/^PROV-DIS-\d+$/.test(id)) {
+
+        document.getElementById("status").innerText =
+          "QR code not recognized";
+
+        return;
+      }
+
+
+      processingScan = true;
+
+      currentStudentId = id;
+
+
+      /*
+       * PAUSE ONLY.
+       *
+       * DO NOT stop the camera.
+       * DO NOT clear the scanner.
+       *
+       * This is what prevents another
+       * camera-permission request.
+       */
+
+      pauseScanner();
+
+
+      document.getElementById("status").innerText =
+        "Recording dismissal...";
+
+
+      document.getElementById("loading").style.display =
+        "block";
+
+
+      sendScan(id);
+    }
+
+
+    /************************************************
+     * SCAN FAILURE
+     ************************************************/
+
+    function onScanFailure(error) {
+
+      /*
+       * This fires constantly while the camera
+       * is looking for a QR code.
+       *
+       * Nothing needs to happen here.
+       */
+
+    }
+
+
+    /************************************************
+     * PAUSE SCANNER
+     *
+     * IMPORTANT:
+     *
+     * pause() keeps the camera session alive.
+     ************************************************/
+
+    function pauseScanner() {
+
+      if (
+        scanner &&
+        cameraStarted &&
+        !scanPaused
+      ) {
+
+        try {
+
+          scanner.pause(true);
+
+          scanPaused = true;
+
+        } catch (error) {
+
+          console.log(
+            "Pause error:",
+            error
+          );
+        }
+      }
+    }
+
+
+    /************************************************
+     * RESUME SCANNER
+     *
+     * This uses the SAME camera session.
+     ************************************************/
+
+    function resumeScanner() {
+
+      if (
+        scanner &&
+        cameraStarted &&
+        scanPaused
+      ) {
+
+        try {
+
+          scanner.resume();
+
+          scanPaused = false;
+
+          processingScan = false;
+
+
+          document.getElementById("status").innerText =
+            "Ready to scan";
+
+
+        } catch (error) {
+
+          console.log(
+            "Resume error:",
+            error
+          );
+
+          /*
+           * This should rarely be needed.
+           */
+
+          processingScan = false;
+
+          document.getElementById("status").innerText =
+            "Ready to scan";
+        }
+
+      } else {
+
+        processingScan = false;
+
+        document.getElementById("status").innerText =
+          "Ready to scan";
+      }
+    }
+
+
+    /************************************************
+     * SEND SCAN TO APPS SCRIPT
+     *
+     * JSONP lets GitHub Pages communicate with
+     * Google Apps Script without navigating away
+     * from this scanner page.
+     ************************************************/
+
+    function sendScan(id) {
+
+      callbackCounter++;
+
+
+      const callbackName =
+        "scanCallback_" +
+        callbackCounter;
+
+
+      window[callbackName] =
+        function(data) {
+
+          try {
+
+            handleScanResponse(data);
+
+          } finally {
+
+            delete window[callbackName];
+          }
+        };
+
+
+      const script =
+        document.createElement("script");
+
+
+      script.src =
+        APPS_SCRIPT_URL +
+        "?api=scan" +
+        "&id=" +
+        encodeURIComponent(id) +
+        "&callback=" +
+        callbackName;
+
+
+      script.onerror =
+        function() {
+
+          delete window[callbackName];
+
+
+          document.getElementById("loading")
+            .style.display = "none";
+
+
+          showError(
+            "Could not connect to the dismissal system."
+          );
+
+
+          processingScan = false;
+
+          resumeScanner();
+        };
+
+
+      document.body.appendChild(script);
+
+
+      /*
+       * Remove the JSONP script later.
+       */
+
+      setTimeout(
+        function() {
+
+          if (script.parentNode) {
+
+            script.parentNode.removeChild(
+              script
+            );
+          }
+
+        },
+        10000
+      );
+    }
+
+
+    /************************************************
+     * HANDLE APPS SCRIPT RESPONSE
+     ************************************************/
+
+    function handleScanResponse(data) {
+
+      document.getElementById("loading")
+        .style.display = "none";
+
+
+      if (!data) {
+
+        showError(
+          "No response was received."
+        );
+
+        processingScan = false;
+
+        resumeScanner();
+
+        return;
+      }
+
+
+      /*
+       * NORMAL DISMISSAL
+       */
+
+      if (data.status === "dismissed") {
+
+        showDismissed(data);
+
+        return;
+      }
+
+
+      /*
+       * DUPLICATE
+       */
+
+      if (data.status === "already_dismissed") {
+
+        showAlreadyDismissed(data);
+
+        return;
+      }
+
+
+      /*
+       * ERROR
+       */
+
+      showError(
+        data.message ||
+        "The student could not be processed."
+      );
+
+
+      processingScan = false;
+
+      resumeScanner();
+    }
+
+
+    /************************************************
+     * SHOW DISMISSED SCREEN
+     ************************************************/
+
+    function showDismissed(data) {
+
+      document.getElementById("successName")
+        .innerText =
+        data.name || currentStudentId;
+
+
+      document.getElementById("successTime")
+        .innerText =
+        data.timestamp
+          ? "Departure: " + data.timestamp
+          : "Departure recorded";
+
+
+      document.getElementById("successOverlay")
+        .style.display = "flex";
+
+
+      document.getElementById("status")
+        .innerText =
+        "Dismissal recorded";
+    }
+
+
+    /************************************************
+     * SHOW ALREADY DISMISSED SCREEN
+     ************************************************/
+
+    function showAlreadyDismissed(data) {
+
+      document.getElementById("warningName")
+        .innerText =
+        data.name || currentStudentId;
+
+
+      document.getElementById("warningTime")
+        .innerText =
+        data.timestamp
+          ? "Previously dismissed: " +
+            data.timestamp
+          : "This student was already dismissed.";
+
+
+      document.getElementById("warningOverlay")
+        .style.display = "flex";
+
+
+      document.getElementById("status")
+        .innerText =
+        "Already dismissed";
+    }
+
+
+    /************************************************
+     * NEXT STUDENT
+     *
+     * This is the critical part.
+     *
+     * We DO NOT:
+     *
+     * scanner.stop()
+     * scanner.clear()
+     * new Html5Qrcode()
+     *
+     * We simply resume the existing camera.
+     ************************************************/
+
+    function nextStudent() {
+
+      document.getElementById("successOverlay")
+        .style.display = "none";
+
+
+      document.getElementById("warningOverlay")
+        .style.display = "none";
+
+
+      document.getElementById("errorMessage")
+        .style.display = "none";
+
+
+      currentStudentId = null;
+
+      processingScan = false;
+
+
+      /*
+       * Resume the SAME camera.
+       */
+
+      resumeScanner();
+    }
+
+
+    /************************************************
+     * UNDO DISMISSAL
+     ************************************************/
+
+    function undoDismissal() {
+
+      if (!currentStudentId) {
+
+        return;
+      }
+
+
+      const id =
+        currentStudentId;
+
+
+      callbackCounter++;
+
+
+      const callbackName =
+        "undoCallback_" +
+        callbackCounter;
+
+
+      window[callbackName] =
+        function(data) {
+
+          try {
+
+            if (
+              data &&
+              data.status === "undone"
+            ) {
+
+              document.getElementById(
+                "successOverlay"
+              ).style.display = "none";
+
+
+              document.getElementById(
+                "warningOverlay"
+              ).style.display = "none";
+
+
+              document.getElementById(
+                "errorMessage"
+              ).style.display = "none";
+
+
+              document.getElementById("status")
+                .innerText =
+                "Dismissal undone";
+
+
+              currentStudentId = null;
+
+              processingScan = false;
+
+
+              /*
+               * Resume the existing camera.
+               */
+
+              resumeScanner();
+
+
+            } else {
+
+              showError(
+                data && data.message
+                  ? data.message
+                  : "Unable to undo dismissal."
+              );
+            }
+
+          } finally {
+
+            delete window[callbackName];
+          }
+        };
+
+
+      const script =
+        document.createElement("script");
+
+
+      script.src =
+        APPS_SCRIPT_URL +
+        "?api=undo" +
+        "&id=" +
+        encodeURIComponent(id) +
+        "&callback=" +
+        callbackName;
+
+
+      script.onerror =
+        function() {
+
+          delete window[callbackName];
+
+          showError(
+            "Could not connect to the dismissal system."
+          );
+        };
+
+
+      document.body.appendChild(script);
+
+
+      setTimeout(
+        function() {
+
+          if (script.parentNode) {
+
+            script.parentNode.removeChild(
+              script
+            );
+          }
+
+        },
+        10000
+      );
+    }
+
+
+    /************************************************
+     * ERROR MESSAGE
+     ************************************************/
+
+    function showError(message) {
+
+      const box =
+        document.getElementById(
+          "errorMessage"
+        );
+
+
+      box.innerText =
+        message;
+
+
+      box.style.display =
+        "block";
+
+
+      setTimeout(
+        function() {
+
+          box.style.display =
+            "none";
+
+        },
+        5000
+      );
+    }
+
+
+    /************************************************
+     * START WHEN PAGE LOADS
+     ************************************************/
+
+    window.addEventListener(
+      "load",
+      function() {
+
+        startScanner();
+
+      }
     );
-  }, 700);
-}
 
-function onScanFailure(errorMessage) {
-  // Normal while the scanner is looking for a QR code.
-}
+  </script>
 
-function startScanner() {
-  if (scanner) return;
-
-  scanner = new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-      qrbox: {
-        width: 250,
-        height: 250
-      },
-      rememberLastUsedCamera: false,
-      showTorchButtonIfSupported: true,
-      showZoomSliderIfSupported: true
-    },
-    false
-  );
-
-  scanner.render(onScanSuccess, onScanFailure);
-}
-
-window.addEventListener("pageshow", function () {
-  handled = false;
-  document.getElementById("reader").innerHTML = "";
-  setTimeout(startScanner, 300);
-});
-
-window.addEventListener("pagehide", function () {
-  releaseCamera();
-});
-</script>
 </body>
 </html>
