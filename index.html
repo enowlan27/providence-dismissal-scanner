@@ -3,147 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Providence Dismissal Scanner</title>
-
-<script src="https://unpkg.com/html5-qrcode"></script>
-
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  background: #f4f7f5;
-  color: #1f2937;
-  text-align: center;
-}
-
-.wrap {
-  max-width: 650px;
-  margin: auto;
-  padding: 24px 16px;
-}
-
-h1 {
-  font-size: 30px;
-}
-
-#reader {
-  width: 100%;
-  max-width: 560px;
-  margin: auto;
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.error {
-  color: red;
-  font-weight: bold;
-}
+body{font-family:Arial,sans-serif;margin:0;background:#f4f7f5;color:#1f2937;text-align:center}
+.wrap{max-width:650px;margin:0 auto;padding:24px 16px 40px}
+h1{margin:8px 0 6px;font-size:30px}.subtitle{margin:0 0 20px;color:#4b5563;font-size:17px}
+#reader{width:100%;max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+.help{margin-top:18px;background:#fff;border-radius:12px;padding:14px;font-size:15px;color:#4b5563}
+.error{margin-top:16px;color:#b91c1c;font-weight:700}
 </style>
 </head>
-
 <body>
-
 <div class="wrap">
-
 <h1>Providence Dismissal Scanner</h1>
-
-<p>
-Point the camera at the student's QR code.
-</p>
-
+<p class="subtitle">Point the camera at the student's QR code.</p>
 <div id="reader"></div>
-
+<div class="help">Allow camera access when your phone asks. The scanner will automatically send the student ID to the Providence dismissal system.</div>
 <div id="error" class="error"></div>
-
 </div>
-
-
 <script>
-
 const APPS_SCRIPT_URL =
-"https://script.google.com/macros/s/AKfycbxUGMJ8hMuVowkrylN7zw4WzZBQ4oBP5ZiWO0TeD0Fu2uu5ytTYrgMKhpQm7Kee21VDlQ/exec";
-
+  "https://script.google.com/macros/s/AKfycbxUGMJ8hMuVowkrylN7zw4WzZBQ4oBP5ZiWO0TeD0Fu2uu5ytTYrgMKhpQm7Kee21VDlQ/exec";
 
 let handled = false;
-window.onpageshow = function() {
-  handled = false;
-};
+let scanner = null;
+
+async function releaseCamera() {
+  if (!scanner) return;
+
+  try {
+    await scanner.stop();
+  } catch (e) {
+    console.log("Scanner stop:", e);
+  }
+
+  try {
+    await scanner.clear();
+  } catch (e) {
+    console.log("Scanner clear:", e);
+  }
+
+  scanner = null;
+}
 
 async function onScanSuccess(decodedText) {
-
   if (handled) return;
 
   const id = decodedText.trim();
 
-
   if (!/^PROV-DIS-\d+$/i.test(id)) {
-
-    document.getElementById("error").innerHTML =
-    "Invalid Providence QR code";
-
+    document.getElementById("error").textContent =
+      "That QR code is not a Providence dismissal code.";
     return;
   }
 
-
   handled = true;
 
+  await releaseCamera();
 
-  try {
-
-    await scanner.stop();
-
-    await scanner.clear();
-
-  } catch(e) {
-
-    console.log(e);
-
-  }
-
-
-  setTimeout(function(){
-
-    window.location.href =
-    APPS_SCRIPT_URL +
-    "?id=" +
-    encodeURIComponent(id);
-
-  },500);
-
+  setTimeout(function () {
+    window.location.replace(
+      APPS_SCRIPT_URL + "?id=" + encodeURIComponent(id)
+    );
+  }, 700);
 }
 
-
-function onScanFailure(error) {
-
+function onScanFailure(errorMessage) {
+  // Normal while the scanner is looking for a QR code.
 }
 
+function startScanner() {
+  if (scanner) return;
 
-const scanner =
-new Html5QrcodeScanner(
+  scanner = new Html5QrcodeScanner(
+    "reader",
+    {
+      fps: 10,
+      qrbox: {
+        width: 250,
+        height: 250
+      },
+      rememberLastUsedCamera: false,
+      showTorchButtonIfSupported: true,
+      showZoomSliderIfSupported: true
+    },
+    false
+  );
 
-"reader",
+  scanner.render(onScanSuccess, onScanFailure);
+}
 
-{
- fps: 10,
- qrbox: { width: 250, height: 250 },
- rememberLastUsedCamera: false,
- showTorchButtonIfSupported: true
-},
+window.addEventListener("pageshow", function () {
+  handled = false;
+  document.getElementById("reader").innerHTML = "";
+  setTimeout(startScanner, 300);
+});
 
-false
-
-);
-
-
-scanner.render(
-onScanSuccess,
-onScanFailure
-);
-
-
+window.addEventListener("pagehide", function () {
+  releaseCamera();
+});
 </script>
-
 </body>
 </html>
