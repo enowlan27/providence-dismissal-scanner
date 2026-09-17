@@ -67,7 +67,9 @@ const APPS_SCRIPT_URL =
 
 
 let handled = false;
-
+window.onpageshow = function() {
+  handled = false;
+};
 
 async function onScanSuccess(decodedText) {
 
@@ -125,8 +127,8 @@ new Html5QrcodeScanner(
 
 {
  fps: 10,
- qrbox: 250,
- rememberLastUsedCamera: true,
+ qrbox: { width: 250, height: 250 },
+ rememberLastUsedCamera: false,
  showTorchButtonIfSupported: true
 },
 
