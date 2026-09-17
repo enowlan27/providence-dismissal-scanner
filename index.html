@@ -1,60 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Providence Dismissal Scanner</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f4f7f5;
+  color: #1f2937;
+  text-align: center;
+}
+
+.wrap {
+  max-width: 650px;
+  margin: auto;
+  padding: 24px 16px;
+}
+
+h1 {
+  font-size: 30px;
+}
+
+#reader {
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<h1>Providence Dismissal Scanner</h1>
+
+<p>
+Point the camera at the student's QR code.
+</p>
+
+<div id="reader"></div>
+
+<div id="error" class="error"></div>
+
+</div>
+
+
 <script>
+
 const APPS_SCRIPT_URL =
 "https://script.google.com/macros/s/AKfycbxUGMJ8hMuVowkrylN7zw4WzZBQ4oBP5ZiWO0TeD0Fu2uu5ytTYrgMKhpQm7Kee21VDlQ/exec";
 
+
 let handled = false;
-let scannerStarted = false;
+
 
 async function onScanSuccess(decodedText) {
+
   if (handled) return;
 
   const id = decodedText.trim();
 
+
   if (!/^PROV-DIS-\d+$/i.test(id)) {
-    document.getElementById("error").textContent =
-      "That QR code is not a Providence dismissal code.";
+
+    document.getElementById("error").innerHTML =
+    "Invalid Providence QR code";
+
     return;
   }
 
+
   handled = true;
 
+
   try {
-    if (window.scanner) {
-      await window.scanner.stop();
-      await window.scanner.clear();
-    }
-  } catch (e) {
-    console.log("Camera cleanup:", e);
+
+    await scanner.stop();
+
+    await scanner.clear();
+
+  } catch(e) {
+
+    console.log(e);
+
   }
 
-  // Small delay to make sure the camera is released
-  setTimeout(() => {
+
+  setTimeout(function(){
+
     window.location.href =
-      APPS_SCRIPT_URL + "?id=" + encodeURIComponent(id);
-  }, 300);
+    APPS_SCRIPT_URL +
+    "?id=" +
+    encodeURIComponent(id);
+
+  },500);
+
 }
 
-function onScanFailure(errorMessage) {
-  // Ignore normal QR searching messages
+
+function onScanFailure(error) {
+
 }
 
-window.scanner = new Html5QrcodeScanner(
-  "reader",
-  {
-    fps: 10,
-    qrbox: {
-      width: 260,
-      height: 260
-    },
-    rememberLastUsedCamera: true,
-    showTorchButtonIfSupported: true,
-    showZoomSliderIfSupported: true
-  },
-  false
+
+const scanner =
+new Html5QrcodeScanner(
+
+"reader",
+
+{
+ fps: 10,
+ qrbox: 250,
+ rememberLastUsedCamera: true,
+ showTorchButtonIfSupported: true
+},
+
+false
+
 );
 
-window.scanner.render(
-  onScanSuccess,
-  onScanFailure
+
+scanner.render(
+onScanSuccess,
+onScanFailure
 );
+
+
 </script>
+
+</body>
+</html>
